@@ -1,0 +1,28 @@
+---
+title: "COVID-19 PERU stats"
+author: "Javier Chang"
+date: "26/4/2020"
+output: html_document
+---
+
+## About the project
+
+This project extracts COVID-19 data from OurWorldInData.org and forecasts total confirmed cases and total deaths for the next 20 days.
+
+The data is downloaded from this location
+
+  <https://covid.ourworldindata.org/data/owid-covid-data.csv>
+
+And a description of the files can be found here
+
+  <https://github.com/owid/covid-19-data/tree/master/public/data>
+
+## Files
+
+These files are part of the project
+
+**Covid 19 Peru.R** the R script which run the statistics
+
+**owid-covid-data.csv** the data set which is downloaded from OurWorldInData.org
+
+**Covid19.Rmd** the markdown that generates the results in HTML format
