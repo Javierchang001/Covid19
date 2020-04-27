@@ -4,18 +4,18 @@
 ## Author: Javier Chang
 ## ---------------------------------------------------------------------------
 
-## PARAMETERS
-## ----------
-country="PER"  ## PER Peru, PRT Portugal, USA Estados Unidos
-numdias <- 20  ## Número de días para el forecast
-fn <- logistic() ## DRC model to predict LL.4(), logistic()
-
-## Carga prerequisitos
+## PREREQUISITES
 if (!require("drc")) {
   install.packages("drc", dependencies = TRUE)
   library(drc)
 }
 
+
+## PARAMETERS
+## ----------
+country="PER"  ## PER Peru, PRT Portugal, USA Estados Unidos
+numdias <- 20  ## Número de días para el forecast
+fn <- logistic() ## DRC model to predict LL.4(), logistic()
 
 ## STEP 1 DESCARGA DATA
 ## --------------------
