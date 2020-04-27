@@ -7,7 +7,7 @@ output: html_document
 
 ## About the project
 
-This project extracts COVID-19 data from OurWorldInData.org and forecasts total confirmed cases and total deaths for the next 20 days.
+This project extracts COVID-19 data from OurWorldInData.org and forecasts total confirmed cases and total deaths for the next 20 days using DRC (Dose-response-curve) logistic model.
 
 The data is downloaded from this location
 
@@ -19,10 +19,10 @@ And a description of the files can be found here
 
 ## Files
 
-These files are part of the project
+These files are part of the project:
 
 **Covid 19 Peru.R** the R script which run the statistics
 
 **owid-covid-data.csv** the data set which is downloaded from OurWorldInData.org
 
-**Covid19.Rmd** the markdown that generates the results in HTML format
+**Covid19.Rmd** the markdown which generates the results in HTML format
