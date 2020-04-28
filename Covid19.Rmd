@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
-A partir de los datos extraídos del sitio web OurWorldinData.org (https://ourworldindata.org/coronavirus), acerca de la enfermedad COVID-19 se ha elaborado la proyección del total de casos confirmados utilizando el modelo logarítmico DRC.
+A partir de los datos extraídos del sitio web OurWorldinData.org (https://ourworldindata.org/coronavirus), acerca de la enfermedad COVID-19 se ha elaborado la proyección del total de casos confirmados utilizando el modelo logistic DRC.
 
 Los datos utilizados se encuentran en esta ubicación
 
@@ -93,6 +93,14 @@ legend(
 )
 ```
 
+The statistics for the model are as follows:
+
+```{r warning=FALSE}
+summary(model.m1)
+```
+
+
+
 ## Muertes por COVID-19 en Perú
 
 A continuación se muestran el número de muertes por COVID-19
@@ -122,5 +130,11 @@ legend(
              paste("Forecast   ", format(round(max(futuro$total_deaths)), big.mark = ",", width=7, justify="right")))
 )
 
+```
+
+The statistics for the model are as follows:
+
+```{r warning=FALSE}
+summary(model.m2)
 ```
 
