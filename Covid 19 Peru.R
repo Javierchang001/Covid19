@@ -2,6 +2,9 @@
 ## Covid 19 FORECAST BY COUNTRY
 ##          Data fuente: Our World in Data
 ## Author: Javier Chang
+##
+## Seleccionar el mejor modelo: 
+##     mselect(model.m1, list(LL.3(), LL.4(), LL.5(), LL.2()), sorted="Res var")
 ## ---------------------------------------------------------------------------
 
 ## PREREQUISITES
@@ -15,7 +18,7 @@ if (!require("drc")) {
 ## ----------
 country="PER"  ## PER Peru, PRT Portugal, USA Estados Unidos
 numdias <- 20  ## Número de días para el forecast
-fn <- logistic() ## DRC model to predict LL.4(), logistic()
+listfn <- list(logistic(), LL.4(), LL.5(), LL.3(), LL.2()) ## Modelos a evaluar
 
 ## STEP 1 DESCARGA DATA
 ## --------------------
@@ -40,14 +43,16 @@ futuro <-
   data.frame(date = as.Date(seq(fechainicio, hoy + numdias), origin = "1970-01-01"))
 
 ## Predicción Total Cases
-model.m1 <- drm(covid$total_cases ~ covid$fecha, fct = fn) 
+modelo.tc <- drm(covid$total_cases ~ covid$fecha, fct = LL.3()) 
+bestmodeltc <- mselect(modelo.tc, listfn, sorted="Res var")
 futuro$total_cases <-
-  predict(model.m1, data.frame(seq(fechainicio, hoy + numdias)))
+  predict(modelo.tc, data.frame(seq(fechainicio, hoy + numdias)))
 
 # Predicción Total Deaths
-model.m2 <- drm(covid$total_deaths ~ covid$fecha, fct = fn) 
+modelo.td <- drm(covid$total_deaths ~ covid$fecha, fct = logistic()) 
+bestmodeltd <- mselect(modelo.td, listfn, sorted="Res var")
 futuro$total_deaths <-
-  predict(model.m2, data.frame(seq(fechainicio, hoy + numdias)))
+  predict(modelo.td, data.frame(seq(fechainicio, hoy + numdias)))
 
 
 ## STEP 3 GRAFICA LOS DATOS
@@ -62,13 +67,15 @@ plot(
   type = "n",
   xlab = "Fecha",
   ylab = "Cantidad",
-  main = paste("Casos confirmados COVID-19 en", country),
+  main = paste("Casos confirmados COVID-19 en", country, "\n", paste("Modelo", modelo.tc$fct$name)),
   xlim = c(min(covid$date), max(futuro$date)),
   ylim = c(0, max(futuro$total_cases))
 )
 lines(futuro$date, futuro$total_cases, type = "l", lty=2, col="blue")
 lines(covid$date, covid$total_cases, type = "l", lty=1, col="black")
 lines(covid$date, covid$new_cases, type = "l", col = "red")
+if (rownames(bestmodeltc)[1]!=modelo.tc$fct$name) 
+  mtext(paste("Cambiar por mejor modelo",rownames(bestmodeltc)[1]), side=3, col="red")
 
 legend(
   "topleft",
@@ -87,7 +94,8 @@ plot(
   type = "n",
   xlab = "Fecha",
   ylab = "Cantidad",
-  main = paste("Proyección muertes por COVID-19 en", country),
+  main = paste("Proyección muertes por COVID-19 en", country, "\n", paste("Modelo", rownames(bestmodeltd)[1])),
+  sub = paste("Modelo", rownames(bestmodeltd)[1]),
   xlim = c(min(covid$date), max(futuro$date)),
   ylim = c(0,max(futuro$total_deaths))
 )
@@ -104,4 +112,6 @@ legend(
              paste("Total cases",format(today$total_deaths, big.mark = ",", width=7, justify="right")), 
              paste("Forecast   ", format(round(max(futuro$total_deaths)), big.mark = ",", width=7, justify="right")))
 )
+if (rownames(bestmodeltd)[1]!=modelo.td$fct$name) 
+  mtext(paste("Cambiar por mejor modelo",rownames(bestmodeltd)[1]), side=3, col="red")
 
