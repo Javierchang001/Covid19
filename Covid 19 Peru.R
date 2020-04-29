@@ -7,7 +7,7 @@
 ##     mselect(model.m1, list(LL.3(), LL.4(), LL.5(), LL.2()), sorted="Res var")
 ## ---------------------------------------------------------------------------
 
-## PREREQUISITES
+## PREREQUISITES 
 if (!require("drc")) {
   install.packages("drc", dependencies = TRUE)
   library(drc)
