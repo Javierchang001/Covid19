@@ -30,15 +30,12 @@ covid <- read.csv(dfile,
 
 ## STEP 2 SELECCIONA LOS PAISES CON MÁS CASOS
 ## ------------------------------------------
-n <- 15
-s <- covid %>%
+s <- covid[covid$total_cases>0 & covid$iso_code!="",] %>%
      group_by(iso_code) %>%
-     summarise(numdays=n(), date=first(date), total_cases=sum(total_cases)) %>%
+     summarise(numdays=n(), date=first(date), total_cases=sum(new_cases)) %>%
      arrange(desc(total_cases), date) %>%
-     top_n(n)
-countrylist <- s$iso_code[s$iso_code!=""]
-countrylist[n] <- "PER"
-covid <- subset(covid, iso_code %in% countrylist)
+     top_n(15)
+covid <- subset(covid, (iso_code %in% s$iso_code) & total_cases>0)
 
 
 ## STEP 3 GRAFICA LOS DATOS
