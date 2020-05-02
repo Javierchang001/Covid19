@@ -43,13 +43,13 @@ futuro <-
   data.frame(date = as.Date(seq(fechainicio, hoy + numdias), origin = "1970-01-01"))
 
 ## Predicción Total Cases
-modelo.tc <- drm(covid$total_cases ~ covid$fecha, fct = LL.3()) 
+modelo.tc <- drm(covid$total_cases ~ covid$fecha, fct = logistic()) 
 bestmodeltc <- mselect(modelo.tc, listfn, sorted="Res var")
 futuro$total_cases <-
   predict(modelo.tc, data.frame(seq(fechainicio, hoy + numdias)))
 
 # Predicción Total Deaths
-modelo.td <- drm(covid$total_deaths ~ covid$fecha, fct = logistic()) 
+modelo.td <- drm(covid$total_deaths ~ covid$fecha, fct = LL.5()) 
 bestmodeltd <- mselect(modelo.td, listfn, sorted="Res var")
 futuro$total_deaths <-
   predict(modelo.td, data.frame(seq(fechainicio, hoy + numdias)))
@@ -113,4 +113,5 @@ legend(
 )
 if (rownames(bestmodeltd)[1]!=modelo.td$fct$name) 
   mtext(paste("Cambiar por mejor modelo",rownames(bestmodeltd)[1]), side=3, col="red")
+
 

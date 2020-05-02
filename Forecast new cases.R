@@ -79,8 +79,9 @@ for (i in fechainicio:hasta){
 
 # Grafica New Cases
 g1<-ggplot(covid, aes(date, new_cases))+
-        ggtitle(paste("Nuevos casos COVID-19",country))+
-        theme(plot.title = element_text(hjust = 0.5))+
+        ggtitle(label=paste("Nuevos casos COVID-19",country))+
+        theme(plot.title = element_text(hjust = 0.5),
+              plot.subtitle = element_text(hjust=0.5))+
         geom_point()+
         geom_line(data=futuro, colour="red")
 
