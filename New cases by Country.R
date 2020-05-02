@@ -3,7 +3,7 @@
 ##          Data fuente: Our World in Data
 ## Author: Javier Chang
 ##
-## Regresión con ajuste a Curva Normal
+## Grafica las curvas de nuevos casos donde primero apareció el virus y con mayor cantidad de casos
 ## ---------------------------------------------------------------------------
 
 ## PREREQUISITES 
@@ -11,11 +11,10 @@ if (!require("ggplot2")) {
      install.packages("ggplot2", dependencies = TRUE)
      library(ggplot2)
 }
-
-## PARAMETERS
-## ----------
-country="PER"  ## PER Peru, PRT Portugal, USA Estados Unidos, KOR Korea, CHN China
-numdias <- 20  ## Número de días para el forecast
+if (!require("dplyr")) {
+     install.packages("dplyr", dependencies = TRUE)
+     library(dplyr)
+}
 
 ## STEP 1 DESCARGA DATA
 ## --------------------
@@ -27,10 +26,19 @@ if (!file.exists(dfile) | as.Date(file.mtime(dfile)) != Sys.Date()) {
 covid <- read.csv(dfile,
                   header = TRUE,
                   colClasses = c(date = "Date"))
-covid <- subset(covid, iso_code %in% list("CHN", "PER", "PTR", "USA", "KOR","ESP", "ITA", "IRN", "CHL", "DEU"))
-today<-subset(covid, covid$date==Sys.Date())
-hoy=unclass(Sys.Date())
 
+
+## STEP 2 SELECCIONA LOS PAISES CON MÁS CASOS
+## ------------------------------------------
+n <- 15
+s <- covid %>%
+     group_by(iso_code) %>%
+     summarise(numdays=n(), date=first(date), total_cases=sum(total_cases)) %>%
+     arrange(desc(total_cases), date) %>%
+     top_n(n)
+countrylist <- s$iso_code[s$iso_code!=""]
+countrylist[n] <- "PER"
+covid <- subset(covid, iso_code %in% countrylist)
 
 
 ## STEP 3 GRAFICA LOS DATOS
