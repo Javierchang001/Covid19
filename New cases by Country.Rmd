@@ -1,0 +1,212 @@
+---
+title: "COVID-19 New Confirmed Cases in PERU"
+author: "Javier Chang"
+date: "17/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=8)
+## PREREQUISITES 
+if (!require("gridExtra")) {
+        install.packages("gridExtra", dependencies = TRUE)
+        library(gridExtra)
+}
+if (!require("ggplot2")) {
+     install.packages("ggplot2", dependencies = TRUE)
+     library(ggplot2)
+}
+if (!require("dplyr")) {
+     install.packages("dplyr", dependencies = TRUE)
+     library(dplyr)
+}
+```
+
+
+## New confirmed cases in PERU
+
+```{r loaddata}
+
+## PARAMETERS
+## ----------
+country="PER"  ## PER Peru, PRT Portugal, USA Estados Unidos, KOR Korea, CHN China
+numdias <- 100  ## Numero de dias para el forecast
+
+## STEP 1 DESCARGA DATA
+## --------------------
+dfile <- "owid-covid-data.csv"
+if (!file.exists(dfile) | as.Date(file.mtime(dfile)) != Sys.Date()) {
+     download.file("https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                   destfile = dfile)
+}
+covid <- read.csv(dfile,
+                  header = TRUE,
+                  colClasses = c(date = "Date"))
+covid <- subset(covid, iso_code == country)
+
+## Calcula dias transcurridos
+today<-subset(covid, covid$date==Sys.Date())
+hoy=unclass(Sys.Date())
+covid2 <- covid[covid$total_cases>0,]
+diastrans <- as.Date(hoy, origin="1970-01-01") - 
+             as.Date(covid2[which.min(covid2$total_cases),]$date, origin="1970-01-01")
+
+## Obtiene los casos de ayer y cuál es el percentil correspondiente
+quantInv <- function(distr, value) ecdf(distr)(value)
+yesterdaycases <- covid[which(covid$date==hoy),]$new_cases
+percentilrank <- as.integer(quantInv(covid$new_cases, yesterdaycases)*100)
+
+## Calcula dia de la semana
+Sys.setlocale("LC_ALL","English")
+fechainicio <- unclass(as.Date("2020-03-15"))
+covid$fecha <- unclass(covid$date)
+covid$diasemana <- factor(weekdays(covid$date), c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"), ordered=TRUE)
+percentilwod <- as.integer(quantInv(covid$new_cases[covid$diasemana==weekdays(as.Date(hoy, origin="1970-01-01"))], yesterdaycases)*100)
+```
+
+**`r diastrans`** days have passed since the first case appeared and yesterday we had **`r format(yesterdaycases, big.mark=",")`** new confirmed cases. It is above the **`r percentilrank`th** percentile of new confirmed daily cases and it is above the **`r percentilwod`th** percentile of the corresponding day of the week.
+
+We have modeled the forecast using a *Normal curve* as we have seen in other countries. See the two sections below in this document.
+
+```{r forecast}
+
+## STEP 2 CALCULA PRONOSTICOS
+## --------------------------------------------
+
+## Predicción New Cases
+x <- covid$fecha
+y <- covid$new_cases
+modelo.nc <-
+     nls(
+          y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
+          start = list(
+               sigma = 22,
+               mu = hoy + 20,
+               maximo = 200000
+          ),
+          control = c(maxiter = 100)
+     )
+rangoprediccion <-seq(fechainicio, hoy + numdias)
+futuro <-
+     data.frame(date = as.Date(rangoprediccion, origin="1970-01-01"), 
+                new_cases = round(predict(modelo.nc, newdata=data.frame(x=rangoprediccion))))
+
+## Calcula Total Cases
+desde=hoy
+hasta=hoy+numdias
+for (i in fechainicio:hasta){
+        if (i<hoy){
+                futuro$total_cases[futuro$date==i]<- covid$total_cases[covid$date==i]
+        } else{
+                futuro$total_cases[futuro$date==i]<- futuro$total_cases[futuro$date==i-1] + futuro$new_cases[futuro$date==i]
+        }
+     
+}
+fechaestable <- as.Date(modelo.nc$m$getPars()[2] + 2.58*modelo.nc$m$getPars()[1], origin="1970-01-01")
+```
+
+The peak of new cases is expected on **`r as.Date(modelo.nc$m$getPars()[2], origin="1970-01-01")`** and the total accumulated number of cases is expected to be **`r format(as.integer(modelo.nc$m$getPars()[3]), big.mark=",")`** by 
+**`r fechaestable`**. Below is the projection of new COVID-19 cases in Peru for the next `r numdias` days.
+
+```{r plotgraphs}
+
+
+## STEP 3 GRAFICA LOS DATOS
+## --------------------------------------------
+
+# Grafica New Cases
+newcasestoday <- covid$new_cases[covid$fecha==hoy]
+g1<-ggplot(covid, aes(date, new_cases))+
+        ggtitle(label=paste("New confirmed cases COVID-19",country))+
+        theme(plot.title = element_text(hjust = 0.5))+
+        geom_point()+
+        geom_line(data=futuro, colour="red")+
+        geom_point(aes(x=as.Date(hoy, origin="1970-01-01"), y=newcasestoday), colour="red", size=2)
+
+## Gráfica Total Cases
+g2<-ggplot(covid, aes(date, total_cases))+
+        ggtitle(paste("Total confirmed cases COVID-19",country))+
+        theme(plot.title = element_text(hjust = 0.5))+
+        geom_point()+
+        geom_line(data=futuro, colour="red")
+
+## Grafica nuevos casos por dia de la semana
+g3<-ggplot(covid, aes(diasemana, new_cases))+
+        ggtitle(paste("New confirmed cases by day of week",country))+
+        xlab("dayofweek")+
+        theme(plot.title = element_text(hjust = 0.5))+
+        geom_boxplot()+
+        geom_point(aes(x=weekdays(as.Date(hoy, origin="1970-01-01")), y=newcasestoday), colour="red", size=2)
+
+## Grafica proporción de nuevos casos vs nuevos tests
+g4 <- ggplot(covid, aes(date, new_tests))+
+        ggtitle(paste("Total tests",country))+
+        theme(plot.title = element_text(hjust = 0.5))+
+        geom_col()+
+        geom_line(aes(date, new_cases), colour="red")
+
+grid.arrange(g1, g2, g3, g4, ncol=2, nrow=2)
+```
+
+## New confirmed cases by country
+
+This section shows the new confirmed cases by country from [OurWorldInData COVID-19](https://covid.ourworldindata.org/data/owid-covid-data.csv"). It selects the 15 countries with more total cases in the world and shows the new confirmed cases for each country. As we can see most of the countries fits a *normal curve* for the first wave of new confirmed cases of COVID-19.
+
+
+```{r newconfirmedcases}
+
+## Load the file
+covid <- read.csv(dfile,
+                  header = TRUE,
+                  colClasses = c(date = "Date"))
+covid$fecha <- unclass(covid$date)
+
+## Select top 15 with more confirmed cases
+s <- covid[covid$total_cases>0 & covid$iso_code!="" & covid$iso_code!="OWID_WRL",] %>%
+     group_by(iso_code) %>%
+     summarise(numdays=n(), date=first(date), total_cases=sum(new_cases)) %>%
+     arrange(desc(total_cases), date) %>%
+     top_n(15)
+covid <- subset(covid, (iso_code %in% s$iso_code) & total_cases>0)
+
+## Plot the graph
+ggplot(covid, aes(date, new_cases_per_million)) +
+     ggtitle("Nuevos casos por millón de habitantes COVID-19 por países")+
+     theme(plot.title = element_text(hjust = 0.5))+
+     geom_point(size=0.75) + 
+     facet_wrap(~iso_code, ncol=3) +
+     geom_smooth()+
+     ylim(0,125)
+
+## Calcula por cada país el model fit
+##countries <- unique(covid$iso_code)
+##for (i in 1:length(countries)) {
+##     x <- covid[covid$iso_code == countries[i], ]$fecha
+##     y <- covid[covid$iso_code == countries[i], ]$new_cases
+##     modelo2.nc <-
+##          nls(
+##               y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
+##               start = list(
+##                    sigma = 22,
+##                    mu = hoy + 20,
+##                    maximo = 200000
+##               ),
+##               control = c(maxiter = 100)
+##          )
+##     print(countries[i])
+##     summary(modelo2.nc)
+##}
+
+
+```
+
+
+## Model fitting with a **normal curve** for PERU
+
+The model fitting a normal curve is summarized as follows. The p-values are less than 0.05 for all the parameters.
+
+```{r}
+summary(modelo.nc)
+modelo.nc$m$getAllPars()
+```
+
