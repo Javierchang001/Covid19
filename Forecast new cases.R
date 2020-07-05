@@ -3,7 +3,7 @@
 ##          Data fuente: Our World in Data
 ## Author: Javier Chang
 ##
-## Forecast con regresión con Curva Normal
+## Forecast con regresion con Curva Normal
 ## ---------------------------------------------------------------------------
 
 ## PREREQUISITES 
@@ -21,7 +21,7 @@ if (!require("gridExtra")) {
 ## PARAMETERS
 ## ----------
 country="PER"  ## PER Peru, PRT Portugal, USA Estados Unidos, KOR Korea, CHN China
-numdias <- 30  ## Número de días para el forecast
+numdias <- 100  ## Numero de dias para el forecast
 
 ## STEP 1 DESCARGA DATA
 ## --------------------
@@ -35,24 +35,26 @@ covid <- read.csv(dfile,
                   colClasses = c(date = "Date"))
 covid <- subset(covid, iso_code == country)
 today<-subset(covid, covid$date==Sys.Date())
-hoy=unclass(Sys.Date())
+hoy=unclass(Sys.Date())-1
 
 
 ## STEP 2 CALCULA PRONOSTICOS
 ## --------------------------------------------
 fechainicio <- unclass(as.Date("2020-03-15"))
 covid$fecha <- unclass(covid$date)
+covid$diasemana <- factor(weekdays(covid$date), c("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"), ordered=TRUE)
+##covid$proptest <- covid$new_cases / covid$new_tests
 
-# Predicción New Cases
+## Predicción New Cases
 x <- covid$fecha
 y <- covid$new_cases
 modelo.nc <-
      nls(
           y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
           start = list(
-               sigma = 15,
-               mu = hoy + 8,
-               maximo = 10000
+               sigma = 22,
+               mu = hoy - 10,
+               maximo = 200000
           ),
           control = c(maxiter = 100)
      )
@@ -78,18 +80,33 @@ for (i in fechainicio:hasta){
 ## --------------------------------------------
 
 # Grafica New Cases
+newcasestoday <- covid$new_cases[covid$fecha==hoy]
 g1<-ggplot(covid, aes(date, new_cases))+
         ggtitle(label=paste("Nuevos casos COVID-19",country))+
-        theme(plot.title = element_text(hjust = 0.5),
-              plot.subtitle = element_text(hjust=0.5))+
+        theme(plot.title = element_text(hjust = 0.5))+
         geom_point()+
-        geom_line(data=futuro, colour="red")
+        geom_line(data=futuro, colour="red")+
+        geom_point(aes(x=as.Date(hoy, origin="1970-01-01"), y=newcasestoday), colour="red", size=2)
 
-# Gráfica Total Cases
+## Gráfica Total Cases
 g2<-ggplot(covid, aes(date, total_cases))+
         ggtitle(paste("Total casos confirmados COVID-19",country))+
         theme(plot.title = element_text(hjust = 0.5))+
         geom_point()+
         geom_line(data=futuro, colour="red")
 
-grid.arrange(g1, g2, ncol=2)
+## Grafica nuevos casos por dia de la semana
+g3<-ggplot(covid, aes(diasemana, new_cases))+
+        ggtitle(paste("Nuevos casos por dia de la semana",country))+
+        theme(plot.title = element_text(hjust = 0.5))+
+        geom_boxplot()+
+        geom_point(aes(x=weekdays(as.Date(hoy, origin="1970-01-01")), y=newcasestoday), colour="red", size=2)
+
+## Grafica proporción de nuevos casos vs nuevos tests
+g4 <- ggplot(covid, aes(date, new_tests))+
+        ggtitle(paste("Total de tests realizados",country))+
+        theme(plot.title = element_text(hjust = 0.5))+
+        geom_col()+
+        geom_line(aes(date, new_cases), colour="red")
+
+grid.arrange(g1, g2, g3, g4, ncol=2, nrow=2)

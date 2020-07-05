@@ -1,7 +1,7 @@
 ---
 title: "COVID-19 New Confirmed Cases in PERU"
 author: "Javier Chang"
-date: "17/5/2020"
+date: "`r format(Sys.time(), '%d/%m/%y')`"
 output: html_document
 ---
 
@@ -57,6 +57,7 @@ diastrans <- as.Date(hoy, origin="1970-01-01") -
 ## Obtiene los casos de ayer y cuál es el percentil correspondiente
 quantInv <- function(distr, value) ecdf(distr)(value)
 yesterdaycases <- covid[which(covid$date==hoy),]$new_cases
+totalcases <- covid[which(covid$date==hoy),]$total_cases
 percentilrank <- as.integer(quantInv(covid$new_cases, yesterdaycases)*100)
 
 ## Calcula dia de la semana
@@ -66,7 +67,7 @@ covid$diasemana <- factor(weekdays(covid$date), c("Monday", "Tuesday", "Wednesda
 percentilwod <- as.integer(quantInv(covid$new_cases[covid$diasemana==weekdays(as.Date(hoy, origin="1970-01-01"))], yesterdaycases)*100)
 ```
 
-**`r diastrans`** days have passed since the first case appeared and yesterday we had **`r format(yesterdaycases, big.mark=",")`** new confirmed cases. It is above the **`r percentilrank`th** percentile of new confirmed daily cases and it is above the **`r percentilwod`th** percentile of the corresponding day of the week.
+**`r diastrans`** days have passed since the first case appeared and yesterday we had **`r format(yesterdaycases, big.mark=",")`** new confirmed cases. It is above the **`r percentilrank`th** percentile of new confirmed daily cases and it is above the **`r percentilwod`th** percentile of the corresponding day of the week. Until now we have accumulated **`r format(totalcases, big.mark=",")`** total confirmed cases.
 
 We have modeled the forecast using a *Normal curve* as we have seen in other countries. See the two sections below in this document.
 
@@ -83,8 +84,8 @@ modelo.nc <-
           y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
           start = list(
                sigma = 22,
-               mu = hoy + 20,
-               maximo = 200000
+               mu = hoy - 20 ,
+               maximo = 320000
           ),
           control = c(maxiter = 100)
      )
@@ -178,42 +179,42 @@ ggplot(covid, aes(date, new_cases_per_million)) +
      geom_point(size=0.75) + 
      facet_wrap(~iso_code, ncol=3) +
      geom_smooth()+
-     ylim(0,125)
+     ylim(0,150)
 
 ## Calcula por cada país el model fit
-countries <- c("ITA", "ESP", "FRA", "GBR", "BEL", "USA")
-country.data <- data.frame(iso_code=character(), sigma=numeric(), mu=numeric(), maximo=numeric(), res.std.err=numeric())
-country.data$iso_code <- character()
-for (i in 1:length(countries)) {
-     x <- covid[covid$iso_code == countries[i], ]$fecha
-     y <- covid[covid$iso_code == countries[i], ]$new_cases
-     modelo2.nc <-
-          nls(
-               y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
-               start = list(
-                    sigma = 22,
-                    mu = x[which.max(y)],
-                    maximo = sum(y)
-               ),
-               control = c(maxiter = 100)
-          )
-     z <- summary(modelo2.nc)
-     country.data[i,] <- list( countries[i],
-                             sigma=z$parameters["sigma", "t value"],
-                             mu=z$parameters["mu", "t value"],
-                             maximo=z$parameters["maximo", "t value"],
-                             sqrt(deviance(modelo2.nc)/df.residual(modelo2.nc)))
-}
+##countries <- c("ITA", "ESP", "FRA", "GBR", "BEL", "USA")
+##country.data <- data.frame(iso_code=character(), sigma=numeric(), mu=numeric(), ##maximo=numeric(), res.std.err=numeric())
+##country.data$iso_code <- character()
+##for (i in 1:length(countries)) {
+##     x <- covid[covid$iso_code == countries[i], ]$fecha
+##     y <- covid[covid$iso_code == countries[i], ]$new_cases
+##     modelo2.nc <-
+##          nls(
+##               y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
+##               start = list(
+##                    sigma = 22,
+##                    mu = x[which.max(y)],
+##                    maximo = sum(y)
+##               ),
+##               control = c(maxiter = 100)
+##          )
+##     z <- summary(modelo2.nc)
+##     country.data[i,] <- list( countries[i],
+##                             sigma=z$parameters["sigma", "t value"],
+##                             mu=z$parameters["mu", "t value"],
+##                             maximo=z$parameters["maximo", "t value"],
+##                             sqrt(deviance(modelo2.nc)/df.residual(modelo2.nc)))
+##}
 ```
 
 The t-values and the residual standard error of the regression model for each country are as follows:
 
 ```{r}
-knitr::kable(country.data, format="markdown")
+##knitr::kable(country.data, format="markdown")
 ```
 
 
-## Model fitting a **normal curve** for PERU data
+## Regression model using a **normal curve** for PERU data
 
 The model fitting a normal curve is summarized as follows. The p-values are less than 0.05 for all the parameters.
 
