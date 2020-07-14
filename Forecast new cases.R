@@ -1,5 +1,5 @@
 ## ---------------------------------------------------------------------------
-## Covid 19 FORECAST NEW CASES 
+## Covid 19 FORECAST NEW CASES v1.1
 ##          Data fuente: Our World in Data
 ## Author: Javier Chang
 ##

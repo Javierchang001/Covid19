@@ -1,5 +1,5 @@
 ## ---------------------------------------------------------------------------
-## Covid 19 STATS BY COUNTRY 
+## Covid 19 STATS BY COUNTRY v1.1
 ##          Data fuente: Our World in Data
 ## Author: Javier Chang
 ##

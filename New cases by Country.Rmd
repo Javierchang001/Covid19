@@ -1,5 +1,5 @@
 ---
-title: "COVID-19 New Confirmed Cases in PERU"
+title: "COVID-19 New Confirmed Cases in PERU v1.1"
 author: "Javier Chang"
 date: "`r format(Sys.time(), '%d/%m/%y')`"
 output: html_document
