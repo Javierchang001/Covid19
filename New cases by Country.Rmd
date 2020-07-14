@@ -84,7 +84,7 @@ modelo.nc <-
           y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
           start = list(
                sigma = 22,
-               mu = hoy - 20 ,
+               mu = hoy - 30 ,
                maximo = 320000
           ),
           control = c(maxiter = 100)
