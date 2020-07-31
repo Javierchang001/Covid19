@@ -1,5 +1,5 @@
 ---
-title: "COVID-19 New Confirmed Cases in PERU v1.1"
+title: "COVID-19 en el PERU y el mundo"
 author: "Javier Chang"
 date: "`r format(Sys.time(), '%d/%m/%y')`"
 output: html_document
@@ -23,41 +23,101 @@ if (!require("dplyr")) {
      install.packages("dplyr", dependencies = TRUE)
      library(dplyr)
 }
+if (!require("kableExtra")) {
+   install.packages("kableExtra", dependencies = TRUE)
+   library(kableExtra)
+}
+if (!require("ggdendro")) {
+        install.packages("ggdendro", dependencies = TRUE)
+        library(ggdendro)
+}
+if (!require("heatmaply")) {
+        install.packages("heatmaply", dependencies = TRUE)
+        library(heatmaply)
+}
+if (!require("corrplot")) {
+        install.packages("corrplot", dependencies = TRUE)
+        library(corrplot)
+}
+if (!require("RColorBrewer")) {
+        install.packages("RColorBrewer", dependencies = TRUE)
+        library(RColorBrewer)
+}
 ```
 
+## Sinopsis
 
-## New confirmed cases in PERU
+El presente documento describe la evolución de COVID-19 en el Perú y la compara con otros paises, siendo que el Perú se encuentra en el top 10 a nivel mundial de casos confirmados y cantidad de fallecidos por COVID-19.
 
-```{r loaddata}
+## Fuente de información
 
-## PARAMETERS
-## ----------
-country="PER"  ## PER Peru, PRT Portugal, USA Estados Unidos, KOR Korea, CHN China
-numdias <- 100  ## Numero de dias para el forecast
+La fuente de información es el conjunto COVID-19 mantenido por Our World In Data. Esta fuente es actualizada diariamente e incluye datos sobre los casos confirmados, fallecidos y pruebas, así como otras variables de interés potencial.
 
-## STEP 1 DESCARGA DATA
-## --------------------
+El repositiorio de los datos se encuentra en GitHub [Data on COVID-19 (coronavirus) by Our World in Data](https://github.com/owid/covid-19-data/tree/master/public/data) y los datos COVID-19 son obtenidos desde el siguiente link: [Covid data](https://covid.ourworldindata.org/data/owid-covid-data.csv)
+
+```{r load_data}
+
+## Descarga datos de ourworldindata
 dfile <- "owid-covid-data.csv"
 if (!file.exists(dfile) | as.Date(file.mtime(dfile)) != Sys.Date()) {
      download.file("https://covid.ourworldindata.org/data/owid-covid-data.csv",
                    destfile = dfile)
 }
-covid <- read.csv(dfile,
+covidtotal <- read.csv(dfile,
                   header = TRUE,
                   colClasses = c(date = "Date"))
-covid <- subset(covid, iso_code == country)
+
+## Totaliza datos por país
+country.data <- covidtotal[covidtotal$total_cases>0 & covidtotal$iso_code!="" & covidtotal$iso_code!="OWID_WRL",] %>% 
+        filter(!is.na(iso_code)) %>%
+        group_by(iso_code, continent, location, population, population_density, median_age, aged_65_older,
+                 aged_70_older, gdp_per_capita, extreme_poverty, cardiovasc_death_rate, diabetes_prevalence,
+                 female_smokers, male_smokers, handwashing_facilities, hospital_beds_per_thousand, life_expectancy) %>% 
+        summarise(date=min(date),
+                  total_cases=max(total_cases, na.rm=TRUE), 
+                  new_cases=mean(new_cases, na.rm=TRUE),
+                  total_deaths=max(total_deaths, na.rm=TRUE),
+                  new_deaths=mean(new_deaths, na.rm=TRUE),
+                  total_cases_per_million=max(total_cases_per_million, na.rm=TRUE),
+                  new_cases_per_million=mean(new_cases_per_million, na.rm=TRUE),
+                  total_deaths_per_million=max(total_deaths_per_million, na.rm=TRUE),
+                  new_deaths_per_million=mean(new_deaths_per_million, na.rm=TRUE),
+                  total_tests=max(total_tests, na.rm=TRUE),
+                  new_tests=mean(new_tests, na.rm=TRUE),
+                  total_tests_per_thousand=max(total_tests_per_thousand, na.rm=TRUE),
+                  new_tests_per_thousand=mean(new_tests_per_thousand, na.rm=TRUE),
+                  stringency_index=mean(stringency_index, na.rm=TRUE)
+                  ) %>%
+        ungroup()
+country.data$days_since_1st_case <- Sys.Date() - country.data$date
+country.data$iso_code <- as.character(country.data$iso_code)
+
+```
+
+
+## Resultados
+
+### Casos confirmados COVID-19 y fallecidos en el PERU
+
+```{r peruresults}
+
+## Parametros
+country="PER"  ## PER Peru
+hoy=unclass(Sys.Date())
+
+## Subconjunto de datos de Peru
+covid <- subset(covidtotal, iso_code == country & !is.na(total_cases))
 
 ## Calcula dias transcurridos
-today<-subset(covid, covid$date==Sys.Date())
-hoy=unclass(Sys.Date())
-covid2 <- covid[covid$total_cases>0,]
-diastrans <- as.Date(hoy, origin="1970-01-01") - 
-             as.Date(covid2[which.min(covid2$total_cases),]$date, origin="1970-01-01")
+diastrans <- with(covid[covid$total_cases>0,], as.Date(hoy, origin="1970-01-01") - 
+             as.Date(covid[which.min(total_cases),]$date, origin="1970-01-01"))
 
 ## Obtiene los casos de ayer y cuál es el percentil correspondiente
 quantInv <- function(distr, value) ecdf(distr)(value)
 yesterdaycases <- covid[which(covid$date==hoy),]$new_cases
 totalcases <- covid[which(covid$date==hoy),]$total_cases
+yesterdaydeaths <- covid[which(covid$date==hoy),]$new_deaths
+totaldeaths <- covid[which(covid$date==hoy),]$total_deaths
 percentilrank <- as.integer(quantInv(covid$new_cases, yesterdaycases)*100)
 
 ## Calcula dia de la semana
@@ -67,71 +127,30 @@ covid$diasemana <- factor(weekdays(covid$date), c("Monday", "Tuesday", "Wednesda
 percentilwod <- as.integer(quantInv(covid$new_cases[covid$diasemana==weekdays(as.Date(hoy, origin="1970-01-01"))], yesterdaycases)*100)
 ```
 
-**`r diastrans`** days have passed since the first case appeared and yesterday we had **`r format(yesterdaycases, big.mark=",")`** new confirmed cases. It is above the **`r percentilrank`th** percentile of new confirmed daily cases and it is above the **`r percentilwod`th** percentile of the corresponding day of the week. Until now we have accumulated **`r format(totalcases, big.mark=",")`** total confirmed cases.
+Han transcurrido **`r diastrans`** dias desde la aparicion del primer caso y ayer se confirmaron **`r format(yesterdaycases, big.mark=",")`** nuevos casos. Dicha cantidad esta en el **`r percentilrank`th** percentile de los nuevos casos confirmados diariamente y es el  **`r percentilwod`th** percentil de su correspondiente dia de la semana. A la fecha hemos acumulado un total de **`r format(totalcases, big.mark=",")`** casos confirmados.
 
-We have modeled the forecast using a *Normal curve* as we have seen in other countries. See the two sections below in this document.
+Asimismo, ayer se registraron **`r format(yesterdaydeaths, big.mark=",")`** fallecimientos y el total acumulado de fallecidos es de  **`r format(totaldeaths, big.mark=",")`** personas.
 
-```{r forecast}
-
-## STEP 2 CALCULA PRONOSTICOS
-## --------------------------------------------
-
-## Predicción New Cases
-x <- covid$fecha
-y <- covid$new_cases
-modelo.nc <-
-     nls(
-          y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
-          start = list(
-               sigma = 22,
-               mu = hoy - 30 ,
-               maximo = 320000
-          ),
-          control = c(maxiter = 100)
-     )
-rangoprediccion <-seq(fechainicio, hoy + numdias)
-futuro <-
-     data.frame(date = as.Date(rangoprediccion, origin="1970-01-01"), 
-                new_cases = round(predict(modelo.nc, newdata=data.frame(x=rangoprediccion))))
-
-## Calcula Total Cases
-desde=hoy
-hasta=hoy+numdias
-for (i in fechainicio:hasta){
-        if (i<hoy){
-                futuro$total_cases[futuro$date==i]<- covid$total_cases[covid$date==i]
-        } else{
-                futuro$total_cases[futuro$date==i]<- futuro$total_cases[futuro$date==i-1] + futuro$new_cases[futuro$date==i]
-        }
-     
-}
-fechaestable <- as.Date(modelo.nc$m$getPars()[2] + 2.58*modelo.nc$m$getPars()[1], origin="1970-01-01")
-```
-
-The peak of new cases is expected on **`r as.Date(modelo.nc$m$getPars()[2], origin="1970-01-01")`** and the total accumulated number of cases is expected to be **`r format(as.integer(modelo.nc$m$getPars()[3]), big.mark=",")`** by 
-**`r fechaestable`**. Below is the projection of new COVID-19 cases in Peru for the next `r numdias` days.
+A continuacion se muestra la evolucion de los nuevos casos confirmados y fallecidos.
 
 ```{r plotgraphs}
 
-
-## STEP 3 GRAFICA LOS DATOS
-## --------------------------------------------
-
 # Grafica New Cases
 newcasestoday <- covid$new_cases[covid$fecha==hoy]
-g1<-ggplot(covid, aes(date, new_cases))+
+g1<-ggplot(covid[covid$new_cases>0,], aes(date, new_cases))+
         ggtitle(label=paste("New confirmed cases COVID-19",country))+
         theme(plot.title = element_text(hjust = 0.5))+
-        geom_point()+
-        geom_line(data=futuro, colour="red")+
+        geom_line()+
+##        geom_line(data=futuro, colour="red")+
+        geom_smooth()+
         geom_point(aes(x=as.Date(hoy, origin="1970-01-01"), y=newcasestoday), colour="red", size=2)
 
 ## Gráfica Total Cases
 g2<-ggplot(covid, aes(date, total_cases))+
         ggtitle(paste("Total confirmed cases COVID-19",country))+
         theme(plot.title = element_text(hjust = 0.5))+
-        geom_point()+
-        geom_line(data=futuro, colour="red")
+        geom_line()
+##        geom_line(data=futuro, colour="red")
 
 ## Grafica nuevos casos por dia de la semana
 g3<-ggplot(covid, aes(diasemana, new_cases))+
@@ -142,35 +161,56 @@ g3<-ggplot(covid, aes(diasemana, new_cases))+
         geom_point(aes(x=weekdays(as.Date(hoy, origin="1970-01-01")), y=newcasestoday), colour="red", size=2)
 
 ## Grafica proporción de nuevos casos vs nuevos tests
-g4 <- ggplot(covid, aes(date, new_tests))+
-        ggtitle(paste("Total tests",country))+
+g4 <- ggplot(covid, aes(date, stringency_index))+
+        ggtitle(paste("Stringency index",country))+
         theme(plot.title = element_text(hjust = 0.5))+
-        geom_col()+
-        geom_line(aes(date, new_cases), colour="red")
+        geom_line()
 
-grid.arrange(g1, g2, g3, g4, ncol=2, nrow=2)
+# Grafica New Deaths
+newdeathstoday <- covid$new_deaths[covid$fecha==hoy]
+g5<-ggplot(covid, aes(date, new_deaths))+
+        ggtitle(label=paste("New deaths COVID-19",country))+
+        theme(plot.title = element_text(hjust = 0.5))+
+        geom_line()+
+        geom_smooth()+
+        ylim(0,250)+
+        geom_point(aes(x=as.Date(hoy, origin="1970-01-01"), y=newdeathstoday), colour="red", size=2)
+
+## Gráfica Total Cases
+g6<-ggplot(covid, aes(date, total_deaths))+
+        ggtitle(paste("Total deaths COVID-19",country))+
+        theme(plot.title = element_text(hjust = 0.5))+
+        geom_line()
+
+grid.arrange(g1, g2, g4, g3, g5, g6, ncol=2, nrow=3)
 ```
 
-## New confirmed cases by country
+### Ranking de nuevos casos COVID-19 confirmados por pais
 
-This section shows the new confirmed cases by country from [OurWorldInData COVID-19](https://covid.ourworldindata.org/data/owid-covid-data.csv"). It selects the 15 countries with more total cases in the world and shows the new confirmed cases for each country. As we can see most of the countries fits a *normal curve* for the first wave of new confirmed cases of COVID-19.
+A continuación se muestra el ranking de los 15 paises con mayor cantidad de casos confirmados de COVID-19.
 
+```{r ranking_cases}
+
+## Selecciona top 15
+top15 <- country.data %>%
+        arrange(desc(total_cases)) %>%
+        top_n(15, total_cases)
+top15 <- cbind(top15, rank=rownames(top15))
+
+## Muestra tabla
+knitr::kable(top15[,c("rank", "iso_code", "location", "total_cases_per_million", "total_cases")],
+             format="html",
+             digits=0,
+             format.args = list(decimal.mark = ".", big.mark = ",")) %>%
+   kable_styling(font_size = 10, full_width=TRUE)
+```
+\n
+En el siguiente cuadro se muestra la evolucion de nuevos casos COVID-19 por millon de habitantes en cada uno de estos paises.
 
 ```{r newconfirmedcases}
 
-## Load the file
-covid <- read.csv(dfile,
-                  header = TRUE,
-                  colClasses = c(date = "Date"))
-covid$fecha <- unclass(covid$date)
-
 ## Select top 15 with more confirmed cases
-s <- covid[covid$total_cases>0 & covid$iso_code!="" & covid$iso_code!="OWID_WRL",] %>%
-     group_by(iso_code) %>%
-     summarise(numdays=n(), date=first(date), total_cases=sum(new_cases)) %>%
-     arrange(desc(total_cases), date) %>%
-     top_n(15)
-covid <- subset(covid, (iso_code %in% s$iso_code) & total_cases>0)
+covid <- subset(covidtotal, (iso_code %in% top15$iso_code) & total_cases>0)
 
 ## Plot the graph
 ggplot(covid, aes(date, new_cases_per_million)) +
@@ -179,47 +219,153 @@ ggplot(covid, aes(date, new_cases_per_million)) +
      geom_point(size=0.75) + 
      facet_wrap(~iso_code, ncol=3) +
      geom_smooth()+
-     ylim(0,150)
-
-## Calcula por cada país el model fit
-##countries <- c("ITA", "ESP", "FRA", "GBR", "BEL", "USA")
-##country.data <- data.frame(iso_code=character(), sigma=numeric(), mu=numeric(), ##maximo=numeric(), res.std.err=numeric())
-##country.data$iso_code <- character()
-##for (i in 1:length(countries)) {
-##     x <- covid[covid$iso_code == countries[i], ]$fecha
-##     y <- covid[covid$iso_code == countries[i], ]$new_cases
-##     modelo2.nc <-
-##          nls(
-##               y ~ maximo * exp(-((x - mu) ^ 2) / (2 * sigma ^ 2)) / (sigma * sqrt(2 * pi)),
-##               start = list(
-##                    sigma = 22,
-##                    mu = x[which.max(y)],
-##                    maximo = sum(y)
-##               ),
-##               control = c(maxiter = 100)
-##          )
-##     z <- summary(modelo2.nc)
-##     country.data[i,] <- list( countries[i],
-##                             sigma=z$parameters["sigma", "t value"],
-##                             mu=z$parameters["mu", "t value"],
-##                             maximo=z$parameters["maximo", "t value"],
-##                             sqrt(deviance(modelo2.nc)/df.residual(modelo2.nc)))
-##}
+     ylim(0,300)
 ```
 
-The t-values and the residual standard error of the regression model for each country are as follows:
+### Ranking de fallecidos por COVID-19 por pais
 
-```{r}
-##knitr::kable(country.data, format="markdown")
+A continuación se muestra el ranking de los 15 paises con mayor cantidad de fallecidos por COVID-19.
+
+```{r ranking_deaths}
+## Selecciona top 15
+top15 <- country.data %>%
+        arrange(desc(total_deaths)) %>%
+        top_n(15, total_deaths)
+top15 <- cbind(top15, rank=rownames(top15))
+
+## Muestra tabla
+knitr::kable(top15[,c("rank", "iso_code", "location", "total_deaths_per_million", "total_deaths")],
+             format="html",
+             format.args = list(decimal.mark = ".", big.mark = ","),
+             digits=0) %>%
+   kable_styling(font_size = 10, full_width=TRUE)
 ```
 
+En el siguiente cuadro se muestra la evolucion de fallecidos COVID-19 por millon de habitantes por dia en cada uno de estos paises.
 
-## Regression model using a **normal curve** for PERU data
+```{r new_deaths}
+## Select top 15 with more total_deaths
+covid <-
+        subset(covidtotal, (iso_code %in% top15$iso_code) & total_cases > 0)
 
-The model fitting a normal curve is summarized as follows. The p-values are less than 0.05 for all the parameters.
+## Plot the graph
+ggplot(covid, aes(date, new_deaths_per_million)) +
+     ggtitle("New COVID-19 deaths per millions by country")+
+     theme(plot.title = element_text(hjust = 0.5))+
+     geom_line() + 
+     facet_wrap(~iso_code, ncol=3) +
+     ylim(0,30)
+```
 
-```{r}
-summary(modelo.nc)
-modelo.nc$m$getAllPars()
+### Variables relacionadas con el total de casos confirmados y fallecidos por millon por COVID-19
+
+Realizamos un análisis de cluster de las variables y obtenemos el siguiente dendrograma.
+
+```{r dendrogram_variables}
+## Selecciona variables para el dendrograma
+cd <- country.data %>% 
+        select(1:17,
+               stringency_index,
+               total_deaths_per_million,
+               total_cases_per_million,
+               -population,
+               -gdp_per_capita,
+               -continent,
+               -location) %>% 
+        mutate_all(~ifelse(is.infinite(.x), NA, .x)) %>%
+        mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
+rownames(cd) <- cd$iso_code
+cd <- select(cd, -iso_code) 
+
+## Calculate the cluster
+hc <- hclust(dist(scale(t(cd))))
+
+## convert cluster object to use with ggplot
+dendr <- dendro_data(hc, type="rectangle") 
+
+## Plot the dendrogram
+ggplot() + 
+        geom_segment(data=segment(dendr), aes(x=x, y=y, xend=xend, yend=yend)) + 
+        geom_text(data=label(dendr), aes(x=x, y=y, label=label, hjust=0), size=3) +
+        coord_flip() + scale_y_reverse(expand=c(0.2, 0)) + 
+        theme(axis.line.y=element_blank(),
+              axis.ticks.y=element_blank(),
+              axis.text.y=element_blank(),
+              axis.title.y=element_blank(),
+              panel.background=element_rect(fill="white"),
+              panel.grid=element_blank())+
+     ggtitle("Similarity dendrogram of variables")+
+     theme(plot.title = element_text(hjust = 0.5))
+```
+
+Por lo que podemos observar que el total de fallecidos por millon tiene mayor cercanía con dos grupos de variables:
+
+* Pobreza extrema, mayor edad de la población, fumadoras mujeres, camas de hospital por millón de habitantes y prevalencia de diabetes
+* Expectativa de vida, qué tan restrictivas han sido las medidas del gobierno, facilidades para lavarse las manos y fumadores hombres
+
+Y la correlacion entre las variables es la siguiente:
+
+```{r corr_todo}
+## Correlaciona variables
+M <- cor(cd)
+corrplot(M, type="upper", order="hclust",
+         col=brewer.pal(n=8, name="RdYlBu"))
+```
+
+### Similitud entre los países con población mayor a 30 millones de habitantes
+
+Asimismo, podemos realizar un análisis de cluster por países para observar la similitud entre ellos. El Peru se parece más a Iran, Mexico, Brasil y Colombia.
+
+```{r dendro_pais}
+
+## Selecciona paises con poblacion mayor de 30 millones de habitantes
+cd <- country.data %>% 
+        filter(population>30000000) %>%
+        select(1:17,
+               stringency_index,
+               total_deaths_per_million, 
+               -population,
+               -gdp_per_capita,
+               -continent,
+               -location) %>% 
+        mutate_all(~ifelse(is.infinite(.x), NA, .x)) %>%
+        mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
+rownames(cd) <- cd$iso_code
+cd <- select(cd, -iso_code) 
+
+## Calculate the cluster
+hc <- hclust(dist(scale(cd)))
+
+## convert cluster object to use with ggplot
+dendr <- dendro_data(hc, type="rectangle") 
+
+## Plot the dendrogram
+ggplot() + 
+        geom_segment(data=segment(dendr), aes(x=x, y=y, xend=xend, yend=yend)) + 
+        geom_text(data=label(dendr), aes(x=x, y=y, label=label, hjust=0), size=3) +
+        coord_flip() + scale_y_reverse(expand=c(0.2, 0)) + 
+        theme(axis.line.y=element_blank(),
+              axis.ticks.y=element_blank(),
+              axis.text.y=element_blank(),
+              axis.title.y=element_blank(),
+              panel.background=element_rect(fill="white"),
+              panel.grid=element_blank())+
+     ggtitle("Similarity dendrogram of variables")+
+     theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Por otro lado, podemos observar en el *heatmap* de los países con población mayor a 30 millones, la relación entre los fallecidos por COVID-19 y el resto de variables.
+
+```{r heatmap}
+ggheatmap(scale(cd), colors=heat.colors(10), k_col=4, k_row=5)
+```
+
+Y entre estos países la correlación entre las variables es como se muestra a continuación.
+
+```{r correlacion}
+M <- cor(cd)
+corrplot(M, type="upper", order="hclust",
+         col=brewer.pal(n=8, name="RdYlBu"))
 ```
 
